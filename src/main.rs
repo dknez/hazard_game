@@ -142,6 +142,19 @@ fn setup_territories() -> UnGraph<&'static str, ()> {
         (),
     );
 
+    let asia_in = territories.add_node("India");
+    let asia_ch = territories.add_node("China");
+    let asia_si = territories.add_node("Siberia");
+    let asia_mo = territories.add_node("Mongolia");
+    let asia_ja = territories.add_node("Japan");
+    let asia_ya = territories.add_node("Yakutsk");
+    let asia_ir = territories.add_node("Irkutsk");
+    let asia_af = territories.add_node("Afghanistan");
+    let asia_me = territories.add_node("Middle East");
+    let asia_se = territories.add_node("Southeast Asia");
+    let asia_ka = territories.add_node("Kamchatka");
+    let asia_ur = territories.add_node("Ural");
+
     territories
 }
 
