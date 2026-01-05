@@ -1,0 +1,464 @@
+// Implementation of a Risk-like turn-based strategy game in Rust.
+
+use std::io;
+use std::io::{Write}; // Import the Write trait for flushing stdout
+use std::collections::HashMap;
+use petgraph::graph::UnGraph; // For use in graph representation of the world map
+use petgraph::visit::IntoNodeReferences;
+use rand::Rng;
+
+#[derive(Clone, Debug)]
+enum Color {
+    Red,
+    Blue,
+    Green,
+    Yellow,
+    Indigo,
+}
+
+#[derive(Debug)]
+struct Player {
+    name: String,
+    color: Color,
+    army_per_territory: HashMap<u32,u32>, // Mapping of territory index to number of armies
+}
+
+impl Player {
+    fn new(name: String, color: Color) -> Self {
+        Player {
+            name,
+            color,
+            army_per_territory: HashMap::new(),
+        }
+    }
+}
+
+fn setup_players(names: Vec<String>) -> Vec<Player> {
+    let colors = vec![
+        Color::Red,
+        Color::Blue,
+        Color::Green,
+        Color::Yellow,
+        Color::Indigo,
+    ];
+
+    let mut players = Vec::new();
+    for (i, name) in names.into_iter().enumerate() {
+        let color = colors.get(i).unwrap_or(&Color::Red).clone(); // Default to Red if out of colors
+        println!("{} has been assigned color {:?}", name, color);
+
+        players.push(Player::new(name, color));
+    }
+
+    players
+}
+
+fn assign_territories_and_armies_to_players(
+    territories: &UnGraph<&'static str, ()>,
+    players: &mut Vec<Player>) {
+    let territory_indices: Vec<u32> = territories
+        .node_indices()
+        .map(|index| index.index() as u32)
+        .collect();
+
+    let mut player_index = 0;
+    for territory_index in territory_indices {
+        players[player_index].army_per_territory.insert(territory_index, 0); // Start with 0 armies
+        player_index = (player_index + 1) % players.len();
+    }
+
+    // Now assign armies to each territory
+    let armies_per_player =
+        match players.len() {
+            1 => 45,
+            2 => 40,
+            3 => 35,
+            4 => 30,
+            5 => 25,
+            _ => 0, // This case should not occur due to earlier checks
+        };
+
+    for player in players.iter_mut() {
+        let mut total_armies = 0;
+        'player_loop: loop {
+            for (_territory_index, armies) in player.army_per_territory.iter_mut() {
+                // We need to check if we've already assigned enough armies since
+                // we iterate over all territories
+                if total_armies >= armies_per_player {
+                    break 'player_loop;
+                }
+
+                *armies += 1;
+                total_armies += 1;
+            }
+        }
+    }
+
+    println!("\nTerritories and armies have been assigned to players as follows:");
+    print_players(&territories, players);
+}
+
+fn print_players(territories: &UnGraph<&'static str, ()>, players: &Vec<Player>) {
+    for player in players.iter() {
+        print_player(territories, player);
+    }
+}
+
+fn print_player(territories: &UnGraph<&'static str, ()>, player: &Player) {
+    println!("Player: {}", player.name);
+    for (territory_index, armies) in player.army_per_territory.iter() {
+        let territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(*territory_index as usize)).unwrap();
+        println!("  Territory: {}, Armies: {}", territory_name, armies);
+    }
+    println!("");
+}
+
+fn setup_territories() -> UnGraph<&'static str, ()> {
+    let mut territories = UnGraph::<&str, ()>::new_undirected();
+
+    let aus_wa = territories.add_node("Western Australia");
+    let aus_ea = territories.add_node("Eastern Australia");
+    let aus_ng = territories.add_node("New Guinea");
+    let aus_id = territories.add_node("Indonesia");
+
+    territories.add_edge(
+        aus_wa,
+        aus_ea,
+        (),
+    );
+    territories.add_edge(
+        aus_wa,
+        aus_id,
+        (),
+    );
+    territories.add_edge(
+        aus_ea,
+        aus_ng,
+        (),
+    );
+    territories.add_edge(
+        aus_ng,
+        aus_id,
+        (),
+    );
+
+    territories
+}
+
+fn print_all_territories(territories: &UnGraph<&'static str, ()>) {
+    println!("World with {} territories has been set up. Territories:\n", territories.node_count());
+
+    for (node_index, weight) in territories.node_references() {
+        println!("Territory: {}", weight);
+
+        for neighbor in territories.neighbors(node_index) {
+            let neighbor_weight = territories.node_weight(neighbor).unwrap();
+            println!("  Neighbor: {}", neighbor_weight);
+        }
+        println!("");
+    }
+}
+
+fn add_armies_to_player(
+    territories: &UnGraph<&'static str, ()>,
+    player: &mut Player,) {
+    let total_territories: u32 = player.army_per_territory.len() as u32;
+    let additional_armies = std::cmp::max(3, total_territories / 3);
+
+    println!(
+        "Player {} receives {} additional armies to deploy.",
+        player.name, additional_armies);
+
+    let mut additional_armies_count = 0;
+    'outer_loop: loop {
+        for (_territory_index, armies) in player.army_per_territory.iter_mut() {
+            // We need to check if we've already assigned enough armies since
+            // we iterate over all territories
+            if additional_armies_count >= additional_armies {
+                break 'outer_loop;
+            }
+
+            *armies += 1;
+            additional_armies_count += 1;
+        }
+    }
+}
+
+fn perform_attack(
+    territories: &UnGraph<&'static str, ()>,
+    players: &mut Vec<Player>,
+    attacker_idx: usize,
+    defender_idx: usize,
+    attacking_territory_index: u32,
+    target_territory_index: u32,) {
+    let attacking_territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)).unwrap();
+    let target_territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(target_territory_index as usize)).unwrap();
+
+    println!(
+        "Player {} is attacking from {} to {}",
+        players[attacker_idx].name, attacking_territory_name, target_territory_name);
+
+    let n_attack_armies = *players[attacker_idx].army_per_territory.get(&attacking_territory_index).unwrap();
+    println!("Player {} has {} armies in {}",
+        players[attacker_idx].name,
+        n_attack_armies,
+        attacking_territory_name);
+    print!("Choose number of armies to attack with (between 1 and {}): ", std::cmp::min(n_attack_armies - 1,3));
+
+    // Need to flush stdout to ensure the prompt appears before reading input
+    io::stdout().flush().expect("Failed to flush stdout");
+
+    let mut n_attacking_armies_input = String::new();
+    io::stdin()
+        .read_line(&mut n_attacking_armies_input)
+        .expect("Failed to read line");
+    let n_attacking_armies: i32 = n_attacking_armies_input.trim().parse().expect("Please type a number!");
+
+    let n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
+    println!("Player {} has {} armies in {}",
+        players[defender_idx].name,
+        n_defend_armies,
+        target_territory_name);
+    print!("Choose number of armies to defend with (between 1 and {}): ", std::cmp::min(n_defend_armies,2));
+
+    io::stdout().flush().expect("Failed to flush stdout");
+
+    let mut n_defending_armies_input = String::new();
+    io::stdin()
+        .read_line(&mut n_defending_armies_input)
+        .expect("Failed to read line");
+    let n_defending_armies: i32 = n_defending_armies_input.trim().parse().expect("Please type a number!");
+
+    let mut rng = rand::thread_rng();
+
+    let mut attacking_dice_rolls = Vec::<u8>::new(); // Placeholder for dice rolls
+    for _ in 0..n_attacking_armies {
+        let dice_roll = rng.gen_range(1..=6);
+        println!("Attacker rolled: {}", dice_roll);
+        attacking_dice_rolls.push(dice_roll);
+    }
+    let mut defending_dice_rolls = Vec::<u8>::new(); // Placeholder for dice rolls
+    for _ in 0..n_defending_armies {
+        let dice_roll = rng.gen_range(1..=6);
+        println!("Defender rolled: {}", dice_roll);
+        defending_dice_rolls.push(dice_roll);
+    }
+
+    attacking_dice_rolls.sort_by(|a, b| b.cmp(a)); // Sort descending
+    defending_dice_rolls.sort_by(|a, b| b.cmp(a)); // Sort descending
+
+    let n_comparisons = std::cmp::min(attacking_dice_rolls.len(), defending_dice_rolls.len());
+    for i in 0..n_comparisons {
+        if attacking_dice_rolls[i] > defending_dice_rolls[i] {
+            println!("Attacker wins comparison {}: {} vs {}", i + 1, attacking_dice_rolls[i], defending_dice_rolls[i]);
+            // Defender loses one army
+            let defender_armies = players[defender_idx].army_per_territory.get_mut(&target_territory_index).unwrap();
+            *defender_armies -= 1;
+        } else {
+            println!("Defender wins comparison {}: {} vs {}", i + 1, defending_dice_rolls[i], attacking_dice_rolls[i]);
+            // Attacker loses one army
+            let attacker_armies = players[attacker_idx].army_per_territory.get_mut(&attacking_territory_index).unwrap();
+            *attacker_armies -= 1;
+        }
+    }
+
+    let new_n_attack_armies = *players[attacker_idx].army_per_territory.get(&attacking_territory_index).unwrap();
+    if new_n_attack_armies < n_attack_armies {
+        println!("Player {} now has {} armies in {}",
+            players[attacker_idx].name,
+            new_n_attack_armies,
+            attacking_territory_name);
+    }
+    let new_n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
+    if new_n_defend_armies < n_defend_armies {
+        println!("Player {} now has {} armies in {}",
+            players[defender_idx].name,
+            new_n_defend_armies,
+            target_territory_name);
+    }
+}
+
+fn main() {
+    println!("\n==== Welcome to Hazard, the Risk-like strategy game! ====");
+
+    let mut territories = setup_territories();
+    print_all_territories(&territories);
+
+    print!("Please enter the number of players between 1 and 5: ");
+
+    // Need to flush stdout to ensure the prompt appears before reading input
+    io::stdout().flush().expect("Failed to flush stdout");
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
+
+    let number_of_players: i32 = input.trim().parse().expect("Please type a number!");
+    assert!(
+        number_of_players >= 1 && number_of_players <= 5,
+        "Number of players must be between 1 and 5"
+    );
+    println!("==== Setting up game for {} players ====", number_of_players);
+
+    let mut player_names = Vec::new();
+    for i in 0..number_of_players {
+        print!("Enter name for Player {}: ", i + 1);
+        io::stdout().flush().expect("Failed to flush stdout");
+
+        let mut name_input = String::new();
+        io::stdin()
+            .read_line(&mut name_input)
+            .expect("Failed to read line");
+
+        player_names.push(name_input.trim().to_string());
+    }
+    println!("");
+
+    let mut players = setup_players(player_names);
+
+    // Assign territories and initial armies here
+    assign_territories_and_armies_to_players(&territories, &mut players);
+
+    // Now we start the game
+    loop {
+        for player_idx in 0..players.len() {
+
+            {
+                let mut_player = &mut players[player_idx];
+                println!("\n==== Player {}'s turn ====", mut_player.name);
+
+                add_armies_to_player(&territories, mut_player);
+            }
+
+            let mut attack_count = 0;
+
+            let mut defender_idx_option: Option<usize> = None;
+            let mut attacking_territory_index: u32 = 0;
+            let mut target_territory_index: u32 = 0;
+
+            loop {
+
+                {
+                    println!("\n==== Attack number {} ====", attack_count + 1);
+
+                    let player = &players[player_idx];
+                    print_player(&territories, player);
+
+                    let mut choose_new_attack = true;
+
+                    if attack_count > 0 {
+                        print!("Do you want to attack the territory again? (y/n): ");
+                        io::stdout().flush().expect("Failed to flush stdout");
+
+                        let mut repeat_attack = String::new();
+                        io::stdin()
+                            .read_line(&mut repeat_attack)
+                            .expect("Failed to read line");
+                        match repeat_attack.trim() {
+                            "y" | "Y" => {
+                                choose_new_attack = false;
+                            }
+                            "n" | "N" => {
+                                // In this case we leave choose_new_attack as true, which will
+                                // keep attacking_territory_index and target_territory_index unchanged
+                            }
+                            _ => {
+                                println!("Invalid input, skipping attack phase.");
+                            }
+                        }
+                    }
+
+                    if choose_new_attack {
+                        print!("Do you want to attack any territory? (y/n): ");
+                        io::stdout().flush().expect("Failed to flush stdout");
+
+                        let mut input = String::new();
+                        io::stdin()
+                            .read_line(&mut input)
+                            .expect("Failed to read line");
+                        match input.trim() {
+                            "y" | "Y" => {
+                                println!("Select attacking territory index:");
+                                for territory_index in player.army_per_territory.keys() {
+                                    println!("Territory index: {}, territory name: {}",
+                                        territory_index,
+                                        territories.node_weight(petgraph::graph::NodeIndex::new(*territory_index as usize)).unwrap());
+                                }
+                                print!("Attacking from territory index: ");
+                                io::stdout().flush().expect("Failed to flush stdout");
+
+                                let mut selected_index = String::new();
+                                io::stdin()
+                                    .read_line(&mut selected_index)
+                                    .expect("Failed to read line");
+                                attacking_territory_index = selected_index.trim().parse().expect("Please type a number!");
+
+                                if let Some(armies) = player.army_per_territory.get(&attacking_territory_index) {
+                                    if *armies < 2 {
+                                        println!("Not enough armies to attack from this territory.");
+                                        continue;
+                                    }
+                                } else {
+                                    println!("You do not own this territory.");
+                                    continue;
+                                }
+
+                                println!("\nSelect target territory index:");
+                                for neighbor in territories.neighbors(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)) {
+                                    let neighbor_weight = territories.node_weight(neighbor).unwrap();
+                                    if let Some(_) = player.army_per_territory.get(&neighbor.index().try_into().unwrap()) {
+                                        // Skip territories owned by the player
+                                        continue;
+                                    }
+                                    println!("Neighbor Territory index: {}, name: {}",
+                                        neighbor.index(),
+                                        neighbor_weight);
+                                }
+                                print!("Targeting territory index: ");
+                                io::stdout().flush().expect("Failed to flush stdout");
+
+                                let mut target_index = String::new();
+                                io::stdin()
+                                    .read_line(&mut target_index)
+                                    .expect("Failed to read line");
+                                target_territory_index = target_index.trim().parse().expect("Please type a number!");
+
+                                // defender is the player who owns the target territory
+                                for other_player in players.iter() {
+                                    if other_player.name != player.name {
+                                        if other_player.army_per_territory.contains_key(&target_territory_index) {
+                                            defender_idx_option = Some(players.iter().position(|p| p.name == other_player.name).unwrap() as usize);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            "n" | "N" => {
+                                println!("==== Attack phase has ended, player {}'s turn is over ====", player.name);
+                            }
+                            _ => {
+                                println!("Invalid input, skipping attack phase.");
+                            }
+                        }
+                    }
+                }
+
+                if let Some(defender_idx) = defender_idx_option
+                {
+                    perform_attack(
+                        &territories,
+                        &mut players,
+                        player_idx,
+                        defender_idx,
+                        attacking_territory_index,
+                        target_territory_index);
+                    
+                    attack_count += 1;
+                }
+            }
+        }
+
+        break;
+    }
+}
