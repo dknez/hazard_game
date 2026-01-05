@@ -216,7 +216,8 @@ fn perform_attack(
         players[attacker_idx].name,
         n_attack_armies,
         attacking_territory_name);
-    print!("Choose number of armies to attack with (between 1 and {}): ", std::cmp::min(n_attack_armies - 1,3));
+    let max_attack_armies = std::cmp::min(n_attack_armies - 1, 3);
+    print!("Choose number of armies to attack with (between 1 and {}): ", max_attack_armies);
 
     // Need to flush stdout to ensure the prompt appears before reading input
     io::stdout().flush().expect("Failed to flush stdout");
@@ -225,14 +226,23 @@ fn perform_attack(
     io::stdin()
         .read_line(&mut n_attacking_armies_input)
         .expect("Failed to read line");
-    let n_attacking_armies: i32 = n_attacking_armies_input.trim().parse().expect("Please type a number!");
+    let mut n_attacking_armies = n_attacking_armies_input.trim().parse().expect("Please type a number!");
+    if n_attacking_armies > max_attack_armies {
+        n_attacking_armies = max_attack_armies;
+        println!("Requested too many attacking armies, reducing to {}", n_attacking_armies);
+    }
+    if n_attacking_armies == 0 {
+        n_attacking_armies = 1;
+        println!("Cannot attack with zero armies, increasing to 1.");
+    }
 
     let n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
     println!("Player {} has {} armies in {}",
         players[defender_idx].name,
         n_defend_armies,
         target_territory_name);
-    print!("Choose number of armies to defend with (between 1 and {}): ", std::cmp::min(n_defend_armies,2));
+    let max_defend_armies = std::cmp::min(n_defend_armies,2);
+    print!("Choose number of armies to defend with (between 1 and {}): ", max_defend_armies);
 
     io::stdout().flush().expect("Failed to flush stdout");
 
@@ -240,7 +250,25 @@ fn perform_attack(
     io::stdin()
         .read_line(&mut n_defending_armies_input)
         .expect("Failed to read line");
-    let n_defending_armies: i32 = n_defending_armies_input.trim().parse().expect("Please type a number!");
+    let mut n_defending_armies = n_defending_armies_input.trim().parse().expect("Please type a number!");
+    if n_defending_armies > max_defend_armies {
+        n_defending_armies = max_defend_armies;
+        println!("Requested too many defending armies, reducing to {}", n_defending_armies);
+    }
+    if n_defending_armies == 0 {
+        n_defending_armies = 1;
+        println!("Cannot defend with zero armies, increasing to 1.");
+    }
+
+    let mut rng = rand::thread_rng();
+
+    let mut attacking_dice_rolls = Vec::<u8>::new(); // Placeholder for dice rolls
+    for _ in 0..n_attacking_armies {
+        let dice_roll = rng.gen_range(1..=6);
+        println!("Attacker rolled: {}", dice_roll);
+        attacking_dice_rolls.push(dice_roll);
+        println!("Cannot attack with zero armies, increasing to 1.");
+    }
 
     let mut rng = rand::thread_rng();
 
@@ -275,15 +303,15 @@ fn perform_attack(
         }
     }
 
-    let new_n_attack_armies = *players[attacker_idx].army_per_territory.get(&attacking_territory_index).unwrap();
-    if new_n_attack_armies < n_attack_armies {
+    {
+        let new_n_attack_armies = *players[attacker_idx].army_per_territory.get(&attacking_territory_index).unwrap();
         println!("Player {} now has {} armies in {}",
             players[attacker_idx].name,
             new_n_attack_armies,
             attacking_territory_name);
     }
-    let new_n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
-    if new_n_defend_armies < n_defend_armies {
+    {
+        let new_n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
         println!("Player {} now has {} armies in {}",
             players[defender_idx].name,
             new_n_defend_armies,
@@ -340,8 +368,10 @@ fn main() {
             {
                 let mut_player = &mut players[player_idx];
                 println!("\n==== Player {}'s turn ====", mut_player.name);
+                println!("\n==== Reinforcement phase ====");
 
                 add_armies_to_player(&territories, mut_player);
+                println!();
             }
 
             let mut attack_count = 0;
@@ -350,10 +380,11 @@ fn main() {
             let mut attacking_territory_index: u32 = 0;
             let mut target_territory_index: u32 = 0;
 
+            println!("==== Attack phase ====");
             loop {
 
                 {
-                    println!("\n==== Attack number {} ====", attack_count + 1);
+                    println!("==== Attack phase round {} ====", attack_count + 1);
 
                     let player = &players[player_idx];
                     print_player(&territories, player);
@@ -449,9 +480,11 @@ fn main() {
                             }
                             "n" | "N" => {
                                 println!("==== Attack phase has ended, player {}'s turn is over ====", player.name);
+                                break;
                             }
                             _ => {
                                 println!("Invalid input, skipping attack phase.");
+                                break;
                             }
                         }
                     }
@@ -469,6 +502,8 @@ fn main() {
                     
                     attack_count += 1;
                 }
+
+                println!();
             }
         }
 
