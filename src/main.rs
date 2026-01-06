@@ -212,6 +212,11 @@ fn perform_attack(
     defender_idx: usize,
     attacking_territory_index: u32,
     target_territory_index: u32,) {
+
+    // We currently hard-code to using the maximum number of armies rather
+    // than asking every time.
+    let use_max_armies = true;
+
     let attacking_territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)).unwrap();
     let target_territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(target_territory_index as usize)).unwrap();
 
@@ -225,23 +230,30 @@ fn perform_attack(
         n_attack_armies,
         attacking_territory_name);
     let max_attack_armies = std::cmp::min(n_attack_armies - 1, 3);
-    print!("Choose number of armies to attack with (between 1 and {}): ", max_attack_armies);
 
-    // Need to flush stdout to ensure the prompt appears before reading input
-    io::stdout().flush().expect("Failed to flush stdout");
-
-    let mut n_attacking_armies_input = String::new();
-    io::stdin()
-        .read_line(&mut n_attacking_armies_input)
-        .expect("Failed to read line");
-    let mut n_attacking_armies = n_attacking_armies_input.trim().parse().expect("Please type a number!");
-    if n_attacking_armies > max_attack_armies {
+    let mut n_attacking_armies = 0;
+    if use_max_armies {
         n_attacking_armies = max_attack_armies;
-        println!("Requested too many attacking armies, reducing to {}", n_attacking_armies);
     }
-    if n_attacking_armies == 0 {
-        n_attacking_armies = 1;
-        println!("Cannot attack with zero armies, increasing to 1.");
+    else {
+        print!("Choose number of armies to attack with (between 1 and {}): ", max_attack_armies);
+
+        // Need to flush stdout to ensure the prompt appears before reading input
+        io::stdout().flush().expect("Failed to flush stdout");
+
+        let mut n_attacking_armies_input = String::new();
+        io::stdin()
+            .read_line(&mut n_attacking_armies_input)
+            .expect("Failed to read line");
+        n_attacking_armies = n_attacking_armies_input.trim().parse().expect("Please type a number!");
+        if n_attacking_armies > max_attack_armies {
+            n_attacking_armies = max_attack_armies;
+            println!("Requested too many attacking armies, reducing to {}", n_attacking_armies);
+        }
+        if n_attacking_armies == 0 {
+            n_attacking_armies = 1;
+            println!("Cannot attack with zero armies, increasing to 1.");
+        }
     }
 
     let n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
@@ -250,22 +262,29 @@ fn perform_attack(
         n_defend_armies,
         target_territory_name);
     let max_defend_armies = std::cmp::min(n_defend_armies,2);
-    print!("Choose number of armies to defend with (between 1 and {}): ", max_defend_armies);
 
-    io::stdout().flush().expect("Failed to flush stdout");
-
-    let mut n_defending_armies_input = String::new();
-    io::stdin()
-        .read_line(&mut n_defending_armies_input)
-        .expect("Failed to read line");
-    let mut n_defending_armies = n_defending_armies_input.trim().parse().expect("Please type a number!");
-    if n_defending_armies > max_defend_armies {
+    let mut n_defending_armies = 0;
+    if use_max_armies {
         n_defending_armies = max_defend_armies;
-        println!("Requested too many defending armies, reducing to {}", n_defending_armies);
     }
-    if n_defending_armies == 0 {
-        n_defending_armies = 1;
-        println!("Cannot defend with zero armies, increasing to 1.");
+    else {
+        print!("Choose number of armies to defend with (between 1 and {}): ", max_defend_armies);
+
+        io::stdout().flush().expect("Failed to flush stdout");
+
+        let mut n_defending_armies_input = String::new();
+        io::stdin()
+            .read_line(&mut n_defending_armies_input)
+            .expect("Failed to read line");
+        n_defending_armies = n_defending_armies_input.trim().parse().expect("Please type a number!");
+        if n_defending_armies > max_defend_armies {
+            n_defending_armies = max_defend_armies;
+            println!("Requested too many defending armies, reducing to {}", n_defending_armies);
+        }
+        if n_defending_armies == 0 {
+            n_defending_armies = 1;
+            println!("Cannot defend with zero armies, increasing to 1.");
+        }
     }
 
     let mut rng = rand::thread_rng();
