@@ -211,7 +211,7 @@ fn perform_attack(
     attacker_idx: usize,
     defender_idx: usize,
     attacking_territory_index: u32,
-    target_territory_index: u32,) {
+    target_territory_index: u32,) -> bool {
 
     // We currently hard-code to using the maximum number of armies rather
     // than asking every time.
@@ -330,20 +330,38 @@ fn perform_attack(
         }
     }
 
-    {
-        let new_n_attack_armies = *players[attacker_idx].army_per_territory.get(&attacking_territory_index).unwrap();
-        println!("Player {} now has {} armies in {}",
+    let new_n_attack_armies = *players[attacker_idx].army_per_territory.get(&attacking_territory_index).unwrap();
+    println!("Player {} now has {} armies in {}",
+        players[attacker_idx].name,
+        new_n_attack_armies,
+        attacking_territory_name);
+
+    let new_n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
+    println!("Player {} now has {} armies in {}",
+        players[defender_idx].name,
+        new_n_defend_armies,
+        target_territory_name);
+
+    if new_n_defend_armies == 0 {
+        // Move one army into the conquered territory, and remove it from the defender
+        players[attacker_idx].army_per_territory.insert(target_territory_index, 1);
+        let attacker_armies = players[attacker_idx].army_per_territory.get_mut(&attacking_territory_index).unwrap();
+        *attacker_armies -= 1;
+
+        players[defender_idx].army_per_territory.remove(&target_territory_index);
+
+        println!("Player {} conquered territory {}!",
             players[attacker_idx].name,
-            new_n_attack_armies,
-            attacking_territory_name);
-    }
-    {
-        let new_n_defend_armies = *players[defender_idx].army_per_territory.get(&target_territory_index).unwrap();
-        println!("Player {} now has {} armies in {}",
-            players[defender_idx].name,
-            new_n_defend_armies,
             target_territory_name);
     }
+
+    if new_n_attack_armies == 1 {
+        println!("Player {} only has one army left, attack on {} cannot continue",
+            players[attacker_idx].name,
+            target_territory_name);
+    }
+
+    (new_n_defend_armies == 0) || (new_n_attack_armies == 1)
 }
 
 fn main() {
@@ -407,6 +425,8 @@ fn main() {
             let mut attacking_territory_index: u32 = 0;
             let mut target_territory_index: u32 = 0;
 
+            let mut attack_finished = false;
+
             println!("==== Attack phase ====");
             loop {
 
@@ -418,7 +438,7 @@ fn main() {
 
                     let mut choose_new_attack = true;
 
-                    if attack_count > 0 {
+                    if attack_count > 0 && !attack_finished {
                         print!("Do you want to attack the territory again? (y/n): ");
                         io::stdout().flush().expect("Failed to flush stdout");
 
@@ -519,14 +539,17 @@ fn main() {
 
                 if let Some(defender_idx) = defender_idx_option
                 {
-                    perform_attack(
-                        &territories,
-                        &mut players,
-                        player_idx,
-                        defender_idx,
-                        attacking_territory_index,
-                        target_territory_index);
-                    
+                    // attack_finished is true if the territory was conquered, or
+                    // if the attacker only has one army left on the attacking territory
+                    attack_finished =
+                        perform_attack(
+                            &territories,
+                            &mut players,
+                            player_idx,
+                            defender_idx,
+                            attacking_territory_index,
+                            target_territory_index);
+
                     attack_count += 1;
                 }
 
