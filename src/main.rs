@@ -496,6 +496,7 @@ fn main() {
                                 }
 
                                 println!("\nSelect target territory index:");
+                                let mut n_targets = 0;
                                 for neighbor in territories.neighbors(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)) {
                                     let neighbor_weight = territories.node_weight(neighbor).unwrap();
                                     if let Some(_) = player.army_per_territory.get(&neighbor.index().try_into().unwrap()) {
@@ -505,6 +506,12 @@ fn main() {
                                     println!("Neighbor Territory index: {}, name: {}",
                                         neighbor.index(),
                                         neighbor_weight);
+                                    n_targets += 1;
+                                }
+
+                                if n_targets == 0 {
+                                    println!("No target territories available!");
+                                    break;
                                 }
                                 print!("Targeting territory index: ");
                                 io::stdout().flush().expect("Failed to flush stdout");
