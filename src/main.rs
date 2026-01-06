@@ -121,26 +121,10 @@ fn setup_territories() -> UnGraph<&'static str, ()> {
     let aus_ng = territories.add_node("New Guinea");
     let aus_id = territories.add_node("Indonesia");
 
-    territories.add_edge(
-        aus_wa,
-        aus_ea,
-        (),
-    );
-    territories.add_edge(
-        aus_wa,
-        aus_id,
-        (),
-    );
-    territories.add_edge(
-        aus_ea,
-        aus_ng,
-        (),
-    );
-    territories.add_edge(
-        aus_ng,
-        aus_id,
-        (),
-    );
+    territories.add_edge(aus_wa, aus_ea, ());
+    territories.add_edge(aus_wa, aus_id, ());
+    territories.add_edge(aus_ea, aus_ng, ());
+    territories.add_edge(aus_ng, aus_id, ());
 
     let asia_in = territories.add_node("India");
     let asia_ch = territories.add_node("China");
@@ -154,6 +138,30 @@ fn setup_territories() -> UnGraph<&'static str, ()> {
     let asia_se = territories.add_node("Southeast Asia");
     let asia_ka = territories.add_node("Kamchatka");
     let asia_ur = territories.add_node("Ural");
+
+    territories.add_edge(aus_id, asia_se, ());
+    territories.add_edge(asia_se, asia_ch, ());
+    territories.add_edge(asia_se, asia_in, ());
+    territories.add_edge(asia_in, asia_af, ());
+    territories.add_edge(asia_in, asia_me, ());
+    territories.add_edge(asia_in, asia_ch, ());
+    territories.add_edge(asia_me, asia_af, ());
+    territories.add_edge(asia_ch, asia_af, ());
+    territories.add_edge(asia_ch, asia_ur, ());
+    territories.add_edge(asia_ch, asia_si, ());
+    territories.add_edge(asia_ch, asia_mo, ());
+    territories.add_edge(asia_af, asia_ur, ());
+    territories.add_edge(asia_ja, asia_mo, ());
+    territories.add_edge(asia_ja, asia_ka, ());
+    territories.add_edge(asia_mo, asia_si, ());
+    territories.add_edge(asia_mo, asia_ir, ());
+    territories.add_edge(asia_mo, asia_ka, ());
+    territories.add_edge(asia_si, asia_ya, ());
+    territories.add_edge(asia_si, asia_ur, ());
+    territories.add_edge(asia_si, asia_ir, ());
+    territories.add_edge(asia_ka, asia_ir, ());
+    territories.add_edge(asia_ka, asia_ya, ());
+    territories.add_edge(asia_ya, asia_ir, ());
 
     territories
 }
