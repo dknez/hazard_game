@@ -335,16 +335,40 @@ fn perform_attack(
         target_territory_name);
 
     if new_n_defend_armies == 0 {
-        // Move one army into the conquered territory, and remove it from the defender
-        players[attacker_idx].army_per_territory.insert(target_territory_index, 1);
-        let attacker_armies = players[attacker_idx].army_per_territory.get_mut(&attacking_territory_index).unwrap();
-        *attacker_armies -= 1;
-
         players[defender_idx].army_per_territory.remove(&target_territory_index);
 
         println!("Player {} conquered territory {}!",
             players[attacker_idx].name,
             target_territory_name);
+
+        // We move at least the number of attacking armies used in the attack,
+        // up to the maximum number of armies minus one left behind in the
+        // attacking territory.
+        let max_movable_armies = new_n_attack_armies - 1;
+        let min_movable_armies = n_attacking_armies;
+        print!("Choose number of armies to move into conquered territory (between {} and {}): ",
+            min_movable_armies,
+            max_movable_armies);
+
+        io::stdout().flush().expect("Failed to flush stdout");
+
+        let mut n_movable_armies_input = String::new();
+        io::stdin()
+            .read_line(&mut n_movable_armies_input)
+            .expect("Failed to read line");
+        let mut n_movable_armies = n_movable_armies_input.trim().parse().expect("Please type a number!");
+        if n_movable_armies > max_movable_armies {
+            n_movable_armies = max_movable_armies;
+            println!("Requested too many movable armies, reducing to {}", n_movable_armies);
+        }
+        if n_movable_armies < min_movable_armies {
+            n_movable_armies = min_movable_armies;
+            println!("Requested too few movable armies, increasing to {}", n_movable_armies);
+        }
+
+        players[attacker_idx].army_per_territory.insert(target_territory_index, n_movable_armies);
+        let attacker_armies = players[attacker_idx].army_per_territory.get_mut(&attacking_territory_index).unwrap();
+        *attacker_armies -= n_movable_armies;
     }
 
     if new_n_attack_armies == 1 {
