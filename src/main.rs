@@ -470,7 +470,7 @@ fn main() {
                             .expect("Failed to read line");
                         match input.trim() {
                             "y" | "Y" => {
-                                println!("Select attacking territory index:");
+                                println!("Select territory to attack from:");
                                 for territory_index in player.army_per_territory.keys() {
                                     println!("Territory index: {}, territory name: {}",
                                         territory_index,
@@ -510,7 +510,8 @@ fn main() {
                                 }
 
                                 if n_targets == 0 {
-                                    println!("No target territories available!");
+                                    println!("No target territories available to attack from {}!",
+                                      territories.node_weight(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)).unwrap());
                                     break;
                                 }
                                 print!("Targeting territory index: ");
