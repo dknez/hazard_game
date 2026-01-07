@@ -234,6 +234,7 @@ fn perform_attack(
     let mut n_attacking_armies = 0;
     if use_max_armies {
         n_attacking_armies = max_attack_armies;
+        println!("Player {} is attacking with {} armies", players[attacker_idx].name, n_attacking_armies);
     }
     else {
         print!("Choose number of armies to attack with (between 1 and {}): ", max_attack_armies);
@@ -266,6 +267,7 @@ fn perform_attack(
     let mut n_defending_armies = 0;
     if use_max_armies {
         n_defending_armies = max_defend_armies;
+        println!("Player {} is defending with {} armies", players[defender_idx].name, n_defending_armies);
     }
     else {
         print!("Choose number of armies to defend with (between 1 and {}): ", max_defend_armies);
@@ -285,16 +287,6 @@ fn perform_attack(
             n_defending_armies = 1;
             println!("Cannot defend with zero armies, increasing to 1.");
         }
-    }
-
-    let mut rng = rand::thread_rng();
-
-    let mut attacking_dice_rolls = Vec::<u8>::new(); // Placeholder for dice rolls
-    for _ in 0..n_attacking_armies {
-        let dice_roll = rng.gen_range(1..=6);
-        println!("Attacker rolled: {}", dice_roll);
-        attacking_dice_rolls.push(dice_roll);
-        println!("Cannot attack with zero armies, increasing to 1.");
     }
 
     let mut rng = rand::thread_rng();
@@ -470,7 +462,7 @@ fn main() {
                             .expect("Failed to read line");
                         match input.trim() {
                             "y" | "Y" => {
-                                println!("Select territory to attack from:");
+                                println!("Select territory index to attack from:");
                                 for territory_index in player.army_per_territory.keys() {
                                     println!("Territory index: {}, territory name: {}",
                                         territory_index,
