@@ -499,12 +499,21 @@ fn main() {
                             .expect("Failed to read line");
                         match input.trim() {
                             "y" | "Y" => {
-                                println!("Select territory index to attack from:");
+                                // Get sorted list of territory indices, since it's easier for the player
+                                // to read when it is ordered.
+                                let mut sorted_territory_indices = Vec::new();
                                 for territory_index in player.army_per_territory.keys() {
+                                    sorted_territory_indices.push(*territory_index);
+                                }
+                                sorted_territory_indices.sort();
+
+                                println!("Select territory index to attack from:");
+                                for territory_index in sorted_territory_indices {
                                     println!("Territory index: {}, territory name: {}",
                                         territory_index,
-                                        territories.node_weight(petgraph::graph::NodeIndex::new(*territory_index as usize)).unwrap());
+                                        territories.node_weight(petgraph::graph::NodeIndex::new(territory_index as usize)).unwrap());
                                 }
+
                                 print!("Attacking from territory index: ");
                                 io::stdout().flush().expect("Failed to flush stdout");
 
