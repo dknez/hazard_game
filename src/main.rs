@@ -380,6 +380,18 @@ fn perform_attack(
     (new_n_defend_armies == 0) || (new_n_attack_armies == 1)
 }
 
+fn check_game_over(players: &Vec<Player>, territories: &UnGraph<&'static str, ()>) -> bool {
+    let total_territories = territories.node_count();
+    for player in players {
+        let n_territories = player.army_per_territory.len();
+        if n_territories == total_territories {
+            println!("Game Over! Player {} has conquered all territories.", player.name);
+            return true;
+        }
+    }
+    false
+}
+
 fn main() {
     println!("\n==== Welcome to Hazard, the Risk-like strategy game! ====");
 
@@ -423,7 +435,8 @@ fn main() {
     assign_territories_and_armies_to_players(&territories, &mut players);
 
     // Now we start the game
-    loop {
+    let mut game_over = false;
+    'game_loop: loop {
         for player_idx in 0..players.len() {
 
             {
@@ -575,12 +588,16 @@ fn main() {
                             target_territory_index);
 
                     attack_count += 1;
+
+                    // Check if one player now has all the territories. If so, we can exit
+                    // the game.
+                    if check_game_over(&players, &territories) {
+                        break 'game_loop;
+                    }
                 }
 
                 println!();
             }
         }
-
-        break;
     }
 }
