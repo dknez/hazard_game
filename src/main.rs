@@ -501,14 +501,13 @@ fn main() {
                             "y" | "Y" => {
                                 // Get sorted list of territory indices, since it's easier for the player
                                 // to read when it is ordered.
-                                let mut sorted_territory_indices = Vec::new();
+                                let mut sorted_attacking_territory_indices = Vec::new();
                                 for territory_index in player.army_per_territory.keys() {
-                                    sorted_territory_indices.push(*territory_index);
+                                    sorted_attacking_territory_indices.push(*territory_index);
                                 }
-                                sorted_territory_indices.sort();
-
+                                sorted_attacking_territory_indices.sort();
                                 println!("Select territory index to attack from:");
-                                for territory_index in sorted_territory_indices {
+                                for territory_index in sorted_attacking_territory_indices {
                                     println!("Territory index: {}, territory name: {}",
                                         territory_index,
                                         territories.node_weight(petgraph::graph::NodeIndex::new(territory_index as usize)).unwrap());
@@ -533,25 +532,32 @@ fn main() {
                                     continue;
                                 }
 
-                                println!("\nSelect target territory index:");
-                                let mut n_targets = 0;
+                                let mut sorted_target_territory_indices = Vec::new();
+                                sorted_target_territory_indices.sort();
                                 for neighbor in territories.neighbors(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)) {
                                     let neighbor_weight = territories.node_weight(neighbor).unwrap();
                                     if let Some(_) = player.army_per_territory.get(&neighbor.index().try_into().unwrap()) {
                                         // Skip territories owned by the player
                                         continue;
                                     }
-                                    println!("Neighbor Territory index: {}, name: {}",
-                                        neighbor.index(),
-                                        neighbor_weight);
-                                    n_targets += 1;
+                                    sorted_target_territory_indices.push(neighbor.index());
                                 }
 
-                                if n_targets == 0 {
+                                if sorted_target_territory_indices.is_empty() {
                                     println!("No target territories available to attack from {}!",
                                       territories.node_weight(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)).unwrap());
                                     continue;
                                 }
+
+                                sorted_target_territory_indices.sort();
+
+                                println!("\nSelect target territory index:");
+                                for territory_index in sorted_target_territory_indices {
+                                    println!("Territory index: {}, territory name: {}",
+                                        territory_index,
+                                        territories.node_weight(petgraph::graph::NodeIndex::new(territory_index as usize)).unwrap());
+                                }
+
                                 print!("Targeting territory index: ");
                                 io::stdout().flush().expect("Failed to flush stdout");
 
