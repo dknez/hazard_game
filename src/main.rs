@@ -84,18 +84,111 @@ fn assign_territories_and_armies_to_players(
             _ => 0, // This case should not occur due to earlier checks
         };
 
-    for player in players.iter_mut() {
-        let mut total_armies = 0;
-        'player_loop: loop {
-            for (_territory_index, armies) in player.army_per_territory.iter_mut() {
-                // We need to check if we've already assigned enough armies since
-                // we iterate over all territories
-                if total_armies >= armies_per_player {
-                    break 'player_loop;
+    println!("Do you want to manually assign troops, or automatically assign toops to all territories evenly?");
+    print!("Type 1 for manual, or 2 for automatic even assignment: ");
+
+    io::stdout().flush().expect("Failed to flush stdout");
+
+    let mut manual_or_even_assignment = String::new();
+    io::stdin()
+        .read_line(&mut manual_or_even_assignment)
+        .expect("Failed to read line");
+    let mut manual_or_even_assignment = manual_or_even_assignment.trim().parse().expect("Please type a number!");
+
+    let mut is_manual_assignment = false;
+    match manual_or_even_assignment {
+        1 => {
+            println!("Manual assignment mode selected.");
+        },
+        2 => {
+            println!("Automatic even assignment mode selected.");
+        },
+        _ => {
+            println!("Invalid input. Defaulting to automatic even assignment.");
+        }
+    }
+
+    if is_manual_assignment {
+        let army_count_per_player = vec![0; players.len()];
+        'outer_loop: loop {
+            let mut player_index = 0;
+            for player in players.iter_mut() {
+                println!("Player: {}, choose a territory index to add an army:", player.name);
+
+                let mut sorted_territory_indices = Vec::new();
+                for territory_index in player.army_per_territory.keys() {
+                    sorted_territory_indices.push(*territory_index);
+                }
+                sorted_territory_indices.sort();
+
+                for territory_index in sorted_territory_indices {
+                    println!("Territory index: {}, territory name: {}",
+                        territory_index,
+                        territories.node_weight(petgraph::graph::NodeIndex::new(territory_index as usize)).unwrap());
                 }
 
-                *armies += 1;
-                total_armies += 1;
+                let mut selected_index = String::new();
+                io::stdin()
+                    .read_line(&mut selected_index)
+                    .expect("Failed to read line");
+                // Reuse the selected_index variable name (requires us to re-declare with "let")
+                let selected_index = selected_index.trim().parse().expect("Please type a number!");
+
+                if let Some(armies) = player.army_per_territory.get(&selected_index) {
+                    armies += 1;
+                    army_count_per_player[player_index] += 1;
+                } else {
+                    println!("You do not own this territory.");
+                    continue;
+                }
+
+                player_index += 1;
+            }
+        }
+        for player in players.iter_mut() {
+            let mut total_armies = 0;
+            'player_loop: loop {
+                for (_territory_index, armies) in player.army_per_territory.iter_mut() {
+                    // We need to check if we've already assigned enough armies since
+                    // we iterate over all territories
+                    if total_armies >= armies_per_player {
+                        break 'player_loop;
+                    }
+
+                    *armies += 1;
+                    total_armies += 1;
+                }
+            }
+        }
+        // for player in players.iter_mut() {
+        //     println!("Player: {}", player.name);
+        //     for (territory_index, _) in player.army_per_territory.iter() {
+        //         let territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(*territory_index as usize)).unwrap();
+        //         print!("Enter number of armies to place in {} (between 1 and 5): ", territory_name);
+        //         io::stdout().flush().expect("Failed to flush stdout");
+        //         let mut n_armies_input = String::new();
+        //         io::stdin()
+        //             .read_line(&mut n_armies_input)
+        //             .expect("Failed to read line");
+        //         let n_armies = n_armies_input.trim().parse().expect("Please type a number!");
+        //         player.army_per_territory.insert(*territory_index, n_armies);
+        //     }
+        // }
+    }
+    else {
+        for player in players.iter_mut() {
+            let mut total_armies = 0;
+            'player_loop: loop {
+                for (_territory_index, armies) in player.army_per_territory.iter_mut() {
+                    // We need to check if we've already assigned enough armies since
+                    // we iterate over all territories
+                    if total_armies >= armies_per_player {
+                        break 'player_loop;
+                    }
+
+                    *armies += 1;
+                    total_armies += 1;
+                }
             }
         }
     }
