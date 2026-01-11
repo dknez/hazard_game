@@ -541,7 +541,7 @@ fn main() {
                                 if n_targets == 0 {
                                     println!("No target territories available to attack from {}!",
                                       territories.node_weight(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)).unwrap());
-                                    break;
+                                    continue;
                                 }
                                 print!("Targeting territory index: ");
                                 io::stdout().flush().expect("Failed to flush stdout");
