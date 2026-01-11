@@ -46,9 +46,12 @@ fn setup_players(names: Vec<String>) -> Vec<Player> {
     let mut players = Vec::new();
     for (i, name) in names.into_iter().enumerate() {
         let color = colors.get(i).unwrap_or(&Color::Red).clone(); // Default to Red if out of colors
-        println!("{} has been assigned color {:?}", name, color);
 
-        players.push(Player::new(name, color));
+        // We use player.color in the print statement to avoid a compiler warning
+        // and the color field never being read.
+        let player = Player::new(name, color);
+        println!("{} has been assigned color {:?}", player.name, player.color);
+        players.push(player);
     }
 
     players
@@ -93,11 +96,12 @@ fn assign_territories_and_armies_to_players(
     io::stdin()
         .read_line(&mut manual_or_even_assignment)
         .expect("Failed to read line");
-    let mut manual_or_even_assignment = manual_or_even_assignment.trim().parse().expect("Please type a number!");
+    let manual_or_even_assignment = manual_or_even_assignment.trim().parse().expect("Please type a number!");
 
     let mut is_manual_assignment = false;
     match manual_or_even_assignment {
         1 => {
+            is_manual_assignment = true;
             println!("Manual assignment mode selected.");
         },
         2 => {
@@ -109,7 +113,7 @@ fn assign_territories_and_armies_to_players(
     }
 
     if is_manual_assignment {
-        let army_count_per_player = vec![0; players.len()];
+        let mut army_count_per_player = vec![0; players.len()];
         'outer_loop: loop {
             let mut player_index = 0;
             for player in players.iter_mut() {
@@ -134,9 +138,14 @@ fn assign_territories_and_armies_to_players(
                 // Reuse the selected_index variable name (requires us to re-declare with "let")
                 let selected_index = selected_index.trim().parse().expect("Please type a number!");
 
-                if let Some(armies) = player.army_per_territory.get(&selected_index) {
-                    armies += 1;
+                if let Some(armies) = player.army_per_territory.get_mut(&selected_index) {
+                    *armies += 1;
                     army_count_per_player[player_index] += 1;
+
+                    if army_count_per_player[player_index] >= armies_per_player {
+                        println!("Player {} has assigned all their armies.", player.name);
+                        break 'outer_loop;
+                    }
                 } else {
                     println!("You do not own this territory.");
                     continue;
@@ -280,7 +289,6 @@ fn print_all_territories(territories: &UnGraph<&'static str, ()>) {
 }
 
 fn add_armies_to_player(
-    territories: &UnGraph<&'static str, ()>,
     player: &mut Player,) {
     let total_territories: u32 = player.army_per_territory.len() as u32;
     let additional_armies = std::cmp::max(3, total_territories / 3);
@@ -330,7 +338,7 @@ fn perform_attack(
         attacking_territory_name);
     let max_attack_armies = std::cmp::min(n_attack_armies - 1, 3);
 
-    let mut n_attacking_armies = 0;
+    let mut n_attacking_armies;
     if use_max_armies {
         n_attacking_armies = max_attack_armies;
         println!("Player {} is attacking with {} armies", players[attacker_idx].name, n_attacking_armies);
@@ -363,7 +371,7 @@ fn perform_attack(
         target_territory_name);
     let max_defend_armies = std::cmp::min(n_defend_armies,2);
 
-    let mut n_defending_armies = 0;
+    let mut n_defending_armies;
     if use_max_armies {
         n_defending_armies = max_defend_armies;
         println!("Player {} is defending with {} armies", players[defender_idx].name, n_defending_armies);
@@ -494,7 +502,7 @@ fn check_game_over(players: &Vec<Player>, territories: &UnGraph<&'static str, ()
 fn main() {
     println!("\n==== Welcome to Hazard, the Risk-like strategy game! ====");
 
-    let mut territories = setup_territories();
+    let territories = setup_territories();
     print_all_territories(&territories);
 
     print!("Please enter the number of players between 1 and 5: ");
@@ -534,7 +542,6 @@ fn main() {
     assign_territories_and_armies_to_players(&territories, &mut players);
 
     // Now we start the game
-    let mut game_over = false;
     'game_loop: loop {
         for player_idx in 0..players.len() {
 
@@ -543,7 +550,7 @@ fn main() {
                 println!("\n==== Player {}'s turn ====", mut_player.name);
                 println!("\n==== Reinforcement phase ====");
 
-                add_armies_to_player(&territories, mut_player);
+                add_armies_to_player(mut_player);
                 println!();
             }
 
@@ -634,7 +641,6 @@ fn main() {
                                 let mut sorted_target_territory_indices = Vec::new();
                                 sorted_target_territory_indices.sort();
                                 for neighbor in territories.neighbors(petgraph::graph::NodeIndex::new(attacking_territory_index as usize)) {
-                                    let neighbor_weight = territories.node_weight(neighbor).unwrap();
                                     if let Some(_) = player.army_per_territory.get(&neighbor.index().try_into().unwrap()) {
                                         // Skip territories owned by the player
                                         continue;
