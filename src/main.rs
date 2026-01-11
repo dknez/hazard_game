@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use petgraph::graph::UnGraph; // For use in graph representation of the world map
 use petgraph::visit::IntoNodeReferences;
 use rand::Rng;
+use rand::prelude::SliceRandom;
 
 #[derive(Clone, Debug)]
 enum Color {
@@ -56,10 +57,15 @@ fn setup_players(names: Vec<String>) -> Vec<Player> {
 fn assign_territories_and_armies_to_players(
     territories: &UnGraph<&'static str, ()>,
     players: &mut Vec<Player>) {
-    let territory_indices: Vec<u32> = territories
+    let mut territory_indices: Vec<u32> = territories
         .node_indices()
         .map(|index| index.index() as u32)
         .collect();
+
+    // Randomly permute territory_indices so that we assign territories to players in
+    // a random manner.
+    let mut rng = rand::thread_rng();
+    territory_indices.shuffle(&mut rng);
 
     let mut player_index = 0;
     for territory_index in territory_indices {
