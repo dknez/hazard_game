@@ -102,7 +102,7 @@ fn assign_territories_and_armies_to_players(
     match manual_or_even_assignment {
         1 => {
             is_manual_assignment = true;
-            println!("Manual assignment mode selected.");
+            println!("Manual assignment mode selected, players will assign {} armies to territories.", armies_per_player);
         },
         2 => {
             println!("Automatic even assignment mode selected.");
@@ -114,22 +114,42 @@ fn assign_territories_and_armies_to_players(
 
     if is_manual_assignment {
         let mut army_count_per_player = vec![0; players.len()];
+
+        // Add one troop to each territory
+        for player_index in 0..players.len() {
+            let player = &mut players[player_index];
+            let territory_indices = player.army_per_territory.keys().cloned().collect::<Vec<u32>>();
+            for territory_index in territory_indices {
+                player.army_per_territory.insert(territory_index, 1);
+                army_count_per_player[player_index] += 1;
+            }
+        }
+
         'outer_loop: loop {
             let mut player_index = 0;
-            for player in players.iter_mut() {
-                println!("Player: {}, choose a territory index to add an army:", player.name);
+            loop {
+                // We only increment player_index once an army is successfully added.
+                if player_index >= players.len() {
+                    break;
+                }
 
+                let player = &mut players[player_index];
                 let mut sorted_territory_indices = Vec::new();
                 for territory_index in player.army_per_territory.keys() {
                     sorted_territory_indices.push(*territory_index);
                 }
                 sorted_territory_indices.sort();
 
+                // Print the current armies per territory
+                println!("\nPlayer: {}, current territories:", player.name);
                 for territory_index in sorted_territory_indices {
-                    println!("Territory index: {}, territory name: {}",
-                        territory_index,
-                        territories.node_weight(petgraph::graph::NodeIndex::new(territory_index as usize)).unwrap());
+                    let territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(territory_index as usize)).unwrap();
+                    let armies = player.army_per_territory.get(&territory_index).unwrap();
+                    println!("Territory index: {}, territory name: {}, Armies: {}", territory_index, territory_name, armies);
                 }
+
+                print!("Choose a territory index to add an army: ");
+                io::stdout().flush().expect("Failed to flush stdout");
 
                 let mut selected_index = String::new();
                 io::stdin()
@@ -142,16 +162,19 @@ fn assign_territories_and_armies_to_players(
                     *armies += 1;
                     army_count_per_player[player_index] += 1;
 
+                    let territory_name = territories.node_weight(petgraph::graph::NodeIndex::new(selected_index as usize)).unwrap();
+                    println!("Player {} now has {} armies in {}.", player.name, *armies, territory_name);
+
                     if army_count_per_player[player_index] >= armies_per_player {
                         println!("Player {} has assigned all their armies.", player.name);
                         break 'outer_loop;
                     }
+
+                    player_index += 1;
                 } else {
-                    println!("You do not own this territory.");
+                    println!("You do not own this territory, please select again.");
                     continue;
                 }
-
-                player_index += 1;
             }
         }
         for player in players.iter_mut() {
