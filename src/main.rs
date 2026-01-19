@@ -367,23 +367,31 @@ fn perform_attack(
         println!("Player {} is attacking with {} armies", players[attacker_idx].name, n_attacking_armies);
     }
     else {
-        print!("Choose number of armies to attack with (between 1 and {}): ", max_attack_armies);
-
-        // Need to flush stdout to ensure the prompt appears before reading input
-        io::stdout().flush().expect("Failed to flush stdout");
-
-        let mut n_attacking_armies_input = String::new();
-        io::stdin()
-            .read_line(&mut n_attacking_armies_input)
-            .expect("Failed to read line");
-        n_attacking_armies = n_attacking_armies_input.trim().parse().expect("Please type a number!");
-        if n_attacking_armies > max_attack_armies {
-            n_attacking_armies = max_attack_armies;
-            println!("Requested too many attacking armies, reducing to {}", n_attacking_armies);
-        }
-        if n_attacking_armies == 0 {
+        if max_attack_armies == 1 {
+            println!("Player {} must attack with 1 army from {}, hence proceeding with 1 army.",
+                players[attacker_idx].name,
+                attacking_territory_name);
             n_attacking_armies = 1;
-            println!("Cannot attack with zero armies, increasing to 1.");
+        }
+        else {
+            print!("Choose number of armies to attack with (between 1 and {}): ", max_attack_armies);
+
+            // Need to flush stdout to ensure the prompt appears before reading input
+            io::stdout().flush().expect("Failed to flush stdout");
+
+            let mut n_attacking_armies_input = String::new();
+            io::stdin()
+                .read_line(&mut n_attacking_armies_input)
+                .expect("Failed to read line");
+            n_attacking_armies = n_attacking_armies_input.trim().parse().expect("Please type a number!");
+            if n_attacking_armies > max_attack_armies {
+                n_attacking_armies = max_attack_armies;
+                println!("Requested too many attacking armies, reducing to {}", n_attacking_armies);
+            }
+            if n_attacking_armies == 0 {
+                n_attacking_armies = 1;
+                println!("Cannot attack with zero armies, increasing to 1.");
+            }
         }
     }
 
@@ -476,6 +484,16 @@ fn perform_attack(
         // attacking territory.
         let max_movable_armies = new_n_attack_armies - 1;
         let min_movable_armies = n_attacking_armies;
+        if min_movable_armies == max_movable_armies {
+            println!("Automatically moving {} armies into conquered territory {}",
+                min_movable_armies,
+                target_territory_name);
+            players[attacker_idx].army_per_territory.insert(target_territory_index, min_movable_armies);
+            let attacker_armies = players[attacker_idx].army_per_territory.get_mut(&attacking_territory_index).unwrap();
+            *attacker_armies -= min_movable_armies;
+            return (new_n_defend_armies == 0) || (new_n_attack_armies == 1);
+        }
+
         print!("Choose number of armies to move into conquered territory (between {} and {}): ",
             min_movable_armies,
             max_movable_armies);
