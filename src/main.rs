@@ -87,7 +87,7 @@ fn assign_territories_and_armies_to_players(
             _ => 0, // This case should not occur due to earlier checks
         };
 
-    println!("Do you want to manually assign troops, or automatically assign toops to all territories evenly?");
+    println!("Do you want to manually assign armies, or automatically assign armies to all territories evenly?");
     print!("Type 1 for manual, or 2 for automatic even assignment: ");
 
     io::stdout().flush().expect("Failed to flush stdout");
